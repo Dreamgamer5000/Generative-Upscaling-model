@@ -1,0 +1,10 @@
+torch
+torchvision
+gradio
+gradio-imageslider
+pillow
+numpy
+opencv-python
+basicsr
+realesrgan
+gfpgan

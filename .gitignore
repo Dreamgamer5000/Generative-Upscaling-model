@@ -1,0 +1,6 @@
+.venv
+/webcam_training_data
+/__pycache__
+/weights
+/gfpgan
+
