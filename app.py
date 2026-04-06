@@ -23,13 +23,16 @@ from PIL import Image, ImageOps
 from gradio_imageslider import ImageSlider
 from diffusers import (
     ControlNetModel,
-    DDIMScheduler,
+    EulerAncestralDiscreteScheduler,
     StableDiffusionControlNetImg2ImgPipeline,
 )
 
 BASE_MODEL_ID = "runwayml/stable-diffusion-v1-5"
 CONTROLNET_MODEL_ID = "lllyasviel/control_v11f1e_sd15_tile"
 LORA_WEIGHTS_PATH = "sdffhq_finetune.safetensors"
+# Change this file name/path if your detail LoRA safetensors file is different.
+DETAIL_LORA_PATH = "add_detail.safetensors"
+DETAIL_LORA_WEIGHT = 1.0
 TRAIN_RESOLUTION = 512
 MODEL_CANVAS_SIZE = 1024
 REALESRGAN_WEIGHTS_URL = (
@@ -45,14 +48,16 @@ SD_GUIDANCE_SCALE = 6.0
 SD_UPSCALE_FACTOR = 1.5
 
 POSITIVE_PROMPT = (
-    "upscale person, RAW photo, 4k ultra high resolution portrait, "
-    "professional lighting, highly detailed DSLR skin texture, sharp focus, 8k uhd"
-)
-NEGATIVE_PROMPT = (
-    "blur, grainy, pixelated, smooth, plastic, mutated, bad anatomy, "
-    "bad lighting, noise, artifacts"
+    "upscale person macro photography, highly detailed pores, intricate skin texture, peach fuzz, "
+    "sharp focus, 8k uhd, dslr, soft studio lighting, masterpiece, ultra-detailed, "
+    "photorealistic face, fine fabric weave"
 )
 
+NEGATIVE_PROMPT = (
+    "smooth, plastic, cartoon, blurry, out of focus, overexposed, washed out, "
+    "cgi, 3d render, illustration, bad art, deformed, bad anatomy, bad lighting, "
+    "jpeg artifacts, noise"
+)
 
 def build_pipeline() -> StableDiffusionControlNetImg2ImgPipeline:
     """Construct and configure the SD1.5 ControlNet Img2Img pipeline.
@@ -80,11 +85,11 @@ def build_pipeline() -> StableDiffusionControlNetImg2ImgPipeline:
     pipe.safety_checker = None
     pipe.requires_safety_checker = False
 
-    pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
-
+    pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
     # Change this file name/path if your LoRA safetensors file is different.
     pipe.load_lora_weights(LORA_WEIGHTS_PATH, adapter_name="upscaler")
-    pipe.set_adapters(["upscaler"], adapter_weights=[0.8])
+    pipe.load_lora_weights(DETAIL_LORA_PATH, adapter_name="detailer")
+    pipe.set_adapters(["upscaler", "detailer"], adapter_weights=[0.8, DETAIL_LORA_WEIGHT])
 
     pipe.enable_model_cpu_offload()
     return pipe
@@ -384,7 +389,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as app:
             denoise_strength = gr.Slider(
                 minimum=0.1,
                 maximum=0.7,
-                value=0.22,
+                value=0.40,
                 step=0.01,
                 label="Denoising Strength",
             )
